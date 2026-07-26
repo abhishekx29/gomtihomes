@@ -61,7 +61,7 @@ function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background font-sans text-foreground">
+    <div className="min-h-screen overflow-x-hidden bg-background font-sans text-foreground">
       <Nav scrolled={scrolled} />
       <Hero />
       <Stats />
