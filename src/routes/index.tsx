@@ -125,7 +125,7 @@ function Hero() {
             <Sparkles className="h-3.5 w-3.5 text-gold" /> Now Booking · Phase II
           </span>
           <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.05] text-white drop-shadow-[0_20px_60px_rgba(0,0,0,0.55)] sm:text-5xl md:text-6xl lg:text-7xl">
-            Own Your Dream Plot in <span className="text-gold">Gomti Nagar</span>, Lucknow
+            Own Your Dream Plot in <span className="text-gold">Gomti Nagar Ext</span>, Lucknow
           </h1>
           <p className="mt-5 max-w-2xl text-base text-white/85 sm:text-lg md:text-xl">
             Premium Residential Plots Near Amity University · Excellent Connectivity · High Appreciation Potential.
