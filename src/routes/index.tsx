@@ -407,8 +407,8 @@ function Investment() {
 /* ---------------- GALLERY ---------------- */
 function Gallery() {
   const imgs = [
-    [heroImg, "Aerial drone view", "row-span-2 col-span-2"],
-    [gRoads, "Wide roads", ""],
+    [heroImg, "Aerial view", "row-span-2 col-span-2"],
+    [gRoads, "2 plots", ""],
     [gPlot, "Ready plots", "col-span-2"],
   ];
   const [lightbox, setLightbox] = useState<string | null>(null);
