@@ -9,9 +9,6 @@ import {
 import heroImg from "@/assets/hero-aerial.jpg";
 import logoImg from "@/assets/logo.png";
 import gRoads from "@/assets/g-roads.jpg";
-import gGreen from "@/assets/g-green.jpg";
-import gOffice from "@/assets/g-office.jpg";
-import gNight from "@/assets/g-night.jpg";
 import gPlot from "@/assets/g-plot.jpg";
 import plotsGraphic from "@/assets/plots graphics.png";
 
@@ -412,10 +409,7 @@ function Gallery() {
   const imgs = [
     [heroImg, "Aerial drone view", "row-span-2 col-span-2"],
     [gRoads, "Wide roads", ""],
-    [gGreen, "Green surroundings", ""],
     [gPlot, "Ready plots", "col-span-2"],
-    [gOffice, "Site office", ""],
-    [gNight, "Night view", ""],
   ];
   const [lightbox, setLightbox] = useState<string | null>(null);
   return (
