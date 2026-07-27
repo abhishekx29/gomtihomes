@@ -22,7 +22,7 @@ export const Route = createFileRoute("/")({
       { title: "Premium Residential Plots in Gomti Nagar Extension, Lucknow | Near Amity University" },
       { name: "description", content: "1250 sq.ft. residential plots in Gomti Nagar Extension near Amity University. Wide roads, good community, bank loan assistance. Book your site visit today." },
       { property: "og:type", content: "website" },
-      { property: "og:title", content: "Own Your Dream Plot in Gomti Nagar, Lucknow" },
+      { property: "og:title", content: "Own Your Dream Plot in Gomti Nagar Ext, Lucknow" },
       { property: "og:description", content: "Premium residential plots near Amity University — excellent connectivity & high appreciation potential." },
       { property: "og:url", content: "/" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -345,8 +345,8 @@ function Layout() {
 /* ---------------- PRICING ---------------- */
 function Pricing() {
   const plots = [
-    { label: "Plot 1", size: "1250", price: "24.00" },
-    { label: "Plot 2", size: "1250", price: "24.00" },
+    { label: "Plot 1", size: "1250", price: "29.00" },
+    { label: "Plot 2", size: "1250", price: "29.00" },
   ];
   return (
     <Section id="pricing" eyebrow="Plot Sizes & Pricing" title="Transparent pricing across every plot size" desc="All-inclusive indicative pricing. Final rate depends on plot position, corner premium & payment plan.">
