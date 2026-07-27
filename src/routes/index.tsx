@@ -158,7 +158,7 @@ function Hero() {
         <div className="mx-auto max-w-7xl px-4 pb-6 sm:px-6">
           <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/20 bg-gradient-to-r from-emerald-600/90 via-teal-600/90 to-cyan-600/90 p-4 text-white shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-md md:grid-cols-4">
             {[
-              ["Starting From", "₹24 Lakhs"],
+              ["Starting From", "₹29 Lakhs"],
               ["Plot Sizes", "1250 sq.ft."],
               ["Location", "Prime · Gomti Nagar Ext."],
               ["Inventory", "Limited · Phase II"],
