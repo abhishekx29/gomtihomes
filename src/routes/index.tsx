@@ -181,7 +181,7 @@ function Stats() {
     <section className="border-b border-border/60 bg-gradient-soft py-10">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-4 text-center sm:px-6 md:grid-cols-4">
         {[
-          ["500+", "Happy Families"],
+          ["50+", "Happy Families"],
           ["12+", "Years of Trust"],
           ["100%", "Approvals"],
           ["4.9★", "Buyer Rating"],
