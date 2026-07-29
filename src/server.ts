@@ -111,7 +111,18 @@ async function parseLeadPayload(request: Request): Promise<LeadPayload> {
   }
 }
 
-async function handleLeadSubmission(request: Request): Promise<Response> {
+function getRuntimeEnvValue(name: string, runtimeEnv: unknown): string | undefined {
+  if (runtimeEnv && typeof runtimeEnv === "object") {
+    const value = (runtimeEnv as Record<string, unknown>)[name];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return process.env[name]?.trim();
+}
+
+async function handleLeadSubmission(request: Request, runtimeEnv: unknown): Promise<Response> {
   try {
     const payload = await parseLeadPayload(request);
 
@@ -123,9 +134,9 @@ async function handleLeadSubmission(request: Request): Promise<Response> {
       `Message: ${payload.message?.trim() || "No additional message provided"}`,
     ].join("\n");
 
-    const resendApiKey = process.env.RESEND_API_KEY?.trim();
-    const targetEmail = process.env.LEAD_EMAIL_TO?.trim() || "abhishekx29@gmail.com";
-    const fromAddress = process.env.RESEND_FROM?.trim() || process.env.SMTP_FROM?.trim() || "onboarding@resend.dev";
+    const resendApiKey = getRuntimeEnvValue("RESEND_API_KEY", runtimeEnv);
+    const targetEmail = getRuntimeEnvValue("LEAD_EMAIL_TO", runtimeEnv) || "abhishekx29@gmail.com";
+    const fromAddress = getRuntimeEnvValue("RESEND_FROM", runtimeEnv) || getRuntimeEnvValue("SMTP_FROM", runtimeEnv) || "onboarding@resend.dev";
 
     if (resendApiKey) {
       try {
@@ -170,7 +181,7 @@ export default {
       const url = new URL(request.url);
       const normalizedPathname = url.pathname.replace(/\/+$/, "") || "/";
       if (request.method === "POST" && normalizedPathname === "/api/submit-lead") {
-        return handleLeadSubmission(request);
+        return handleLeadSubmission(request, env);
       }
 
       const handler = await getServerEntry();
