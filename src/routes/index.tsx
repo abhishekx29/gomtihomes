@@ -505,8 +505,7 @@ function Faq({ openFaq, setOpenFaq }: { openFaq: number | null; setOpenFaq: (n: 
 
 /* ---------------- LEAD FORM ---------------- */
 function LeadForm() {
-  const [sent, setSent] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [modal, setModal] = useState<{ title: string; message: string; type: "success" | "error" } | null>(null);
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -542,14 +541,19 @@ function LeadForm() {
         throw new Error(result.error || "Unable to send your request.");
       }
 
-      setSent(true);
-      setSubmitError(null);
-      setTimeout(() => setSent(false), 4000);
+      setModal({
+        title: "Request received",
+        message: "Thanks! Our team will contact you shortly.",
+        type: "success",
+      });
       form.reset();
     } catch (error) {
       console.error(error);
-      setSubmitError("We couldn't send your request right now. Please call us directly at +918604940110.");
-      setSent(false);
+      setModal({
+        title: "Submission failed",
+        message: "We couldn't send your request right now. Please call us directly at +918604940110.",
+        type: "error",
+      });
     }
   };
 
@@ -606,10 +610,40 @@ function LeadForm() {
               <MessageCircle className="h-4 w-4" /> WhatsApp
             </a>
           </div>
-          {sent && <p className="mt-4 rounded-xl bg-primary/10 px-4 py-3 text-sm font-medium text-primary">✓ Thanks! Our team will contact you shortly.</p>}
-          {submitError && <p className="mt-4 rounded-xl bg-red-100 px-4 py-3 text-sm font-medium text-red-700">{submitError}</p>}
           <p className="mt-3 text-[11px] text-muted-foreground">By submitting, you agree to be contacted about this project. We respect your privacy.</p>
         </form>
+
+        {modal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 sm:px-6">
+            <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-black/10">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">{modal.type === "success" ? "Success" : "Error"}</p>
+                  <h3 className="mt-3 text-2xl font-bold text-foreground">{modal.title}</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModal(null)}
+                  className="text-foreground/70 transition hover:text-foreground"
+                >
+                  ×
+                </button>
+              </div>
+              <p className={`mt-5 text-sm ${modal.type === "success" ? "text-foreground/80" : "text-red-700"}`}>
+                {modal.message}
+              </p>
+              <div className="mt-8 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setModal(null)}
+                  className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
