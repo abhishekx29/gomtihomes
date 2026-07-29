@@ -586,7 +586,7 @@ function LeadForm() {
           </div>
         </div>
 
-        <form onSubmit={onSubmit} className="rounded-3xl bg-card p-6 shadow-elegant sm:p-8">
+        <form onSubmit={onSubmit} action="/api/submit-lead" method="post" className="rounded-3xl bg-card p-6 shadow-elegant sm:p-8">
           <h3 className="font-display text-2xl font-bold text-foreground">Book Your Site Visit</h3>
           <p className="mt-1 text-sm text-muted-foreground">Fill the form — our senior consultant will call you within 15 minutes.</p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
