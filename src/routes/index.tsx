@@ -15,6 +15,7 @@ import plotsGraphic from "@/assets/plots graphics.png";
 const PHONE = "+918604940110";
 const WHATSAPP = "918604940110";
 const WA_MSG = encodeURIComponent("Hi, I'm interested in the Gomti Nagar Extension plots. Please share details.");
+const FORM_SUBMIT_EMAIL = "abhishek9621444444@gmail.com";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -521,12 +522,60 @@ function LeadForm() {
     };
 
     try {
-      const submitUrl = typeof window !== "undefined" ? new URL("/api/submit-lead", window.location.origin).toString() : "/api/submit-lead";
-      const response = await fetch(submitUrl, {
+      const formSubmitUrl = `https://formsubmit.co/${encodeURIComponent(FORM_SUBMIT_EMAIL)}`;
+      const hiddenForm = document.createElement("form");
+      hiddenForm.method = "POST";
+      hiddenForm.action = formSubmitUrl;
+      hiddenForm.target = "_blank";
+      hiddenForm.style.display = "none";
+
+      const fields = [
+        ["name", payload.name || "Site Visit Lead"],
+        ["phone", payload.phone || ""],
+        ["email", payload.email || ""],
+        ["date", payload.date || ""],
+        ["message", payload.message || ""],
+        ["_subject", "New Site Visit Request - Gomti Homes"],
+      ] as Array<[string, string]>;
+
+      fields.forEach(([fieldName, value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = fieldName;
+        input.value = value;
+        hiddenForm.appendChild(input);
+      });
+
+      document.body.appendChild(hiddenForm);
+      hiddenForm.submit();
+      document.body.removeChild(hiddenForm);
+
+      setModal({
+        title: "Request received",
+        message: "Thanks! Our team will contact you shortly.",
+        type: "success",
+      });
+      form.reset();
+      return;
+    } catch {
+      // fall through to the fetch-based path below if the native form submission fails.
+    }
+
+    try {
+      const formSubmitUrl = `https://formsubmit.co/ajax/${encodeURIComponent(FORM_SUBMIT_EMAIL)}`;
+      const formSubmitBody = new URLSearchParams({
+        name: payload.name || "Site Visit Lead",
+        phone: payload.phone || "",
+        email: payload.email || "",
+        date: payload.date || "",
+        message: payload.message || "",
+        _subject: "New Site Visit Request - Gomti Homes",
+      }).toString();
+
+      const response = await fetch(formSubmitUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "same-origin",
+        headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: formSubmitBody,
       });
 
       const responseText = await response.text();
@@ -535,14 +584,41 @@ function LeadForm() {
       try {
         result = JSON.parse(responseText) as { success?: boolean; error?: string; fallback?: boolean; message?: string };
       } catch {
-        result = { success: response.ok };
+        result = { success: response.ok, message: responseText || "" };
       }
 
       if (!response.ok) {
-        throw new Error(result.error || result.message || "Unable to send your request.");
-      }
+        try {
+          const fallbackResponse = await fetch("/api/submit-lead", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(payload),
+            credentials: "same-origin",
+          });
 
-      if (result.success !== true && result.fallback !== true) {
+          if (fallbackResponse.ok) {
+            const fallbackText = await fallbackResponse.text();
+            let fallbackResult: { success?: boolean; error?: string; fallback?: boolean; message?: string } = { success: false };
+            try {
+              fallbackResult = JSON.parse(fallbackText) as { success?: boolean; error?: string; fallback?: boolean; message?: string };
+            } catch {
+              fallbackResult = { success: fallbackResponse.ok, message: fallbackText || "" };
+            }
+
+            if (fallbackResult.success === true || fallbackResult.fallback === true) {
+              setModal({
+                title: "Request received",
+                message: fallbackResult.message || "Thanks! Our team will contact you shortly.",
+                type: "success",
+              });
+              form.reset();
+              return;
+            }
+          }
+        } catch {
+          // Ignore fallback errors and surface the primary error below.
+        }
+
         throw new Error(result.error || result.message || "Unable to send your request.");
       }
 
