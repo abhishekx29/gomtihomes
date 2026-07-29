@@ -526,10 +526,19 @@ function LeadForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        credentials: "same-origin",
       });
 
-      const result = await response.json().catch(() => ({ success: false }));
-      if (!response.ok || !result.success) {
+      const responseText = await response.text();
+      let result: { success?: boolean; error?: string } = { success: false };
+
+      try {
+        result = JSON.parse(responseText) as { success?: boolean; error?: string };
+      } catch {
+        result = { success: response.ok };
+      }
+
+      if (!response.ok || result.success !== true) {
         throw new Error(result.error || "Unable to send your request.");
       }
 

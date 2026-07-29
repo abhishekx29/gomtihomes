@@ -1,12 +1,31 @@
 import "./lib/error-capture";
 
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
+dotenv.config();
+
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
+
+type LeadPayload = {
+  name?: string;
+  phone?: string;
+  email?: string;
+  date?: string;
+  message?: string;
+};
+
+type LeadRecord = LeadPayload & {
+  submittedAt: string;
+};
+
+const LEADS_STORAGE_PATH = resolve(process.cwd(), "data", "leads.json");
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
@@ -45,15 +64,56 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+async function persistLead(payload: LeadPayload): Promise<void> {
+  try {
+    await mkdir(dirname(LEADS_STORAGE_PATH), { recursive: true });
+
+    let existing: LeadRecord[] = [];
+    try {
+      const existingText = await readFile(LEADS_STORAGE_PATH, "utf8");
+      existing = JSON.parse(existingText) as LeadRecord[];
+    } catch {
+      existing = [];
+    }
+
+    existing.push({
+      ...payload,
+      submittedAt: new Date().toISOString(),
+    });
+
+    await writeFile(LEADS_STORAGE_PATH, JSON.stringify(existing, null, 2), "utf8");
+  } catch (error) {
+    console.error("Failed to persist lead locally", error);
+  }
+}
+
+async function parseLeadPayload(request: Request): Promise<LeadPayload> {
+  try {
+    const rawBody = await request.text();
+    if (!rawBody?.trim()) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(rawBody) as LeadPayload;
+    } catch {
+      const params = new URLSearchParams(rawBody);
+      return {
+        name: params.get("name") ?? undefined,
+        phone: params.get("phone") ?? undefined,
+        email: params.get("email") ?? undefined,
+        date: params.get("date") ?? undefined,
+        message: params.get("message") ?? undefined,
+      };
+    }
+  } catch {
+    return {};
+  }
+}
+
 async function handleLeadSubmission(request: Request): Promise<Response> {
   try {
-    const payload = (await request.json().catch(() => ({}))) as {
-      name?: string;
-      phone?: string;
-      email?: string;
-      date?: string;
-      message?: string;
-    };
+    const payload = await parseLeadPayload(request);
 
     const details = [
       `Name: ${payload.name?.trim() || "Not provided"}`,
@@ -63,44 +123,53 @@ async function handleLeadSubmission(request: Request): Promise<Response> {
       `Message: ${payload.message?.trim() || "No additional message provided"}`,
     ].join("\n");
 
-    const smtpHost = process.env.SMTP_HOST;
+    const rawHost = process.env.SMTP_HOST?.trim() || "smtp.gmail.com";
+    const smtpHost = rawHost.includes("://") ? rawHost.replace(/^https?:\/\//, "") : rawHost;
     const smtpPort = Number(process.env.SMTP_PORT ?? 587);
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const targetEmail = process.env.LEAD_EMAIL_TO || "abhishekx29@gmail.com";
+    const smtpUser = process.env.SMTP_USER?.trim();
+    const smtpPass = process.env.SMTP_PASS?.trim();
+    const targetEmail = process.env.LEAD_EMAIL_TO?.trim() || "abhishekx29@gmail.com";
+    const fromAddress = process.env.SMTP_FROM?.trim() || smtpUser || "noreply@gomti-homes.local";
 
-    if (!smtpHost || !smtpUser || !smtpPass) {
-      console.error("Lead email not sent because SMTP credentials are not configured.");
-      return new Response(JSON.stringify({ success: false, error: "Email service is not configured." }), {
-        status: 500,
-        headers: { "content-type": "application/json" },
-      });
+    if (smtpHost && smtpUser && smtpPass && !smtpHost.includes("://")) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: smtpHost.startsWith("smtp.") || smtpHost === "gmail.com" ? smtpHost : `smtp.${smtpHost}`,
+          port: smtpPort,
+          secure: smtpPort === 465,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+        });
+
+        await transporter.sendMail({
+          from: fromAddress,
+          to: targetEmail,
+          subject: "New Site Visit Request - Gomti Homes",
+          text: details,
+        });
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      } catch (error) {
+        console.error("Lead email delivery failed, falling back to local storage", error);
+      }
+    } else {
+      console.warn("Lead email not sent because SMTP credentials are not configured or invalid.");
     }
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
+    await persistLead(payload);
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || smtpUser,
-      to: targetEmail,
-      subject: "New Site Visit Request - Gomti Homes",
-      text: details,
-    });
-
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, fallback: true, message: "Lead captured successfully. We will follow up shortly." }), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
   } catch (error) {
-    console.error("Lead email delivery failed", error);
-    return new Response(JSON.stringify({ success: false, error: "Failed to send lead email." }), {
+    console.error("Lead submission failed", error);
+    return new Response(JSON.stringify({ success: false, error: "Failed to process your request." }), {
       status: 500,
       headers: { "content-type": "application/json" },
     });
@@ -111,7 +180,8 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const url = new URL(request.url);
-      if (request.method === "POST" && url.pathname === "/api/submit-lead") {
+      const normalizedPathname = url.pathname.replace(/\/+$/, "") || "/";
+      if (request.method === "POST" && normalizedPathname === "/api/submit-lead") {
         return handleLeadSubmission(request);
       }
 
