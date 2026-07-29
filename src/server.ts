@@ -122,6 +122,64 @@ function getRuntimeEnvValue(name: string, runtimeEnv: unknown): string | undefin
   return process.env[name]?.trim();
 }
 
+async function sendLeadViaResend(details: string, apiKey: string, fromAddress: string, targetEmail: string) {
+  const resend = new Resend(apiKey);
+  await resend.emails.send({
+    from: fromAddress,
+    to: [targetEmail],
+    subject: "New Site Visit Request - Gomti Homes",
+    text: details,
+  });
+}
+
+async function sendLeadViaSendGrid(details: string, apiKey: string, fromAddress: string, targetEmail: string) {
+  const body = {
+    personalizations: [
+      {
+        to: [{ email: targetEmail }],
+        subject: "New Site Visit Request - Gomti Homes",
+      },
+    ],
+    from: { email: fromAddress },
+    content: [{ type: "text/plain", value: details }],
+  };
+
+  const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(`SendGrid email delivery failed: ${response.status} ${await response.text()}`);
+  }
+}
+
+async function sendLeadViaFormSubmit(payload: LeadPayload, targetEmail: string) {
+  const fallbackResponse = await fetch("https://formsubmit.co/ajax/" + encodeURIComponent(targetEmail), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json",
+    },
+    body: new URLSearchParams({
+      name: payload.name?.trim() || "Site Visit Lead",
+      phone: payload.phone?.trim() || "",
+      email: payload.email?.trim() || "",
+      date: payload.date?.trim() || "",
+      message: payload.message?.trim() || "",
+      _subject: "New Site Visit Request - Gomti Homes",
+    }).toString(),
+  });
+
+  if (!fallbackResponse.ok) {
+    throw new Error(`FormSubmit fallback failed: ${fallbackResponse.status} ${await fallbackResponse.text()}`);
+  }
+}
+
 async function handleLeadSubmission(request: Request, runtimeEnv: unknown): Promise<Response> {
   try {
     const payload = await parseLeadPayload(request);
@@ -135,72 +193,74 @@ async function handleLeadSubmission(request: Request, runtimeEnv: unknown): Prom
     ].join("\n");
 
     const resendApiKey = getRuntimeEnvValue("RESEND_API_KEY", runtimeEnv);
+    const sendGridApiKey = getRuntimeEnvValue("SENDGRID_API_KEY", runtimeEnv);
     const targetEmail = getRuntimeEnvValue("LEAD_EMAIL_TO", runtimeEnv) || "abhishek9621444444@gmail.com";
-    const fromAddress = getRuntimeEnvValue("RESEND_FROM", runtimeEnv) || getRuntimeEnvValue("SMTP_FROM", runtimeEnv) || "onboarding@resend.dev";
+    const fromAddress =
+      getRuntimeEnvValue("SENDGRID_FROM", runtimeEnv) ||
+      getRuntimeEnvValue("RESEND_FROM", runtimeEnv) ||
+      getRuntimeEnvValue("SMTP_FROM", runtimeEnv) ||
+      "onboarding@resend.dev";
 
     console.log("Lead submission runtime env", {
       hasResendApiKey: Boolean(resendApiKey),
+      hasSendGridApiKey: Boolean(sendGridApiKey),
       targetEmail,
       fromAddress,
     });
 
+    let resendSuccess = false;
+    let sendGridSuccess = false;
+    let formSubmitSuccess = false;
+    const methods: string[] = [];
+
     if (resendApiKey) {
       try {
-        const resend = new Resend(resendApiKey);
-
-        await resend.emails.send({
-          from: fromAddress,
-          to: [targetEmail],
-          subject: "New Site Visit Request - Gomti Homes",
-          text: details,
-        });
-
-        return new Response(JSON.stringify({ success: true, delivered: true, method: "resend" }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        });
+        await sendLeadViaResend(details, resendApiKey, fromAddress, targetEmail);
+        resendSuccess = true;
+        methods.push("resend");
       } catch (error) {
-        console.error("Lead email delivery failed with Resend, trying fallback delivery", error);
+        console.error("Lead email delivery failed with Resend", error);
       }
     } else {
       console.warn("Lead email not sent because Resend credentials are not configured.");
     }
 
-    try {
-      const fallbackResponse = await fetch("https://formsubmit.co/ajax/" + encodeURIComponent(targetEmail), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Accept": "application/json",
-        },
-        body: new URLSearchParams({
-          name: payload.name?.trim() || "Site Visit Lead",
-          phone: payload.phone?.trim() || "",
-          email: payload.email?.trim() || "",
-          date: payload.date?.trim() || "",
-          message: details,
-          _subject: "New Site Visit Request - Gomti Homes",
-        }).toString(),
-      });
-
-      if (fallbackResponse.ok) {
-        return new Response(JSON.stringify({ success: true, delivered: true, method: "formsubmit" }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        });
+    if (!resendSuccess && sendGridApiKey) {
+      try {
+        await sendLeadViaSendGrid(details, sendGridApiKey, fromAddress, targetEmail);
+        sendGridSuccess = true;
+        methods.push("sendgrid");
+      } catch (error) {
+        console.error("Lead email delivery failed with SendGrid", error);
       }
+    }
 
-      console.error("FormSubmit fallback failed", await fallbackResponse.text());
-    } catch (fallbackError) {
-      console.error("FormSubmit fallback failed", fallbackError);
+    if (!resendSuccess && !sendGridSuccess) {
+      try {
+        await sendLeadViaFormSubmit(payload, targetEmail);
+        formSubmitSuccess = true;
+        methods.push("formsubmit");
+      } catch (fallbackError) {
+        console.error("FormSubmit fallback failed", fallbackError);
+      }
+    }
+
+    if (resendSuccess || sendGridSuccess || formSubmitSuccess) {
+      return new Response(JSON.stringify({ success: true, delivered: true, methods }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     }
 
     await persistLead(payload);
 
-    return new Response(JSON.stringify({ success: true, fallback: true, message: "Lead captured successfully. We will follow up shortly." }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ success: true, fallback: true, message: "Lead captured successfully. We will follow up shortly." }),
+      {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      },
+    );
   } catch (error) {
     console.error("Lead submission failed", error);
     return new Response(JSON.stringify({ success: false, error: "Failed to process your request." }), {
