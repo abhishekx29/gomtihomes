@@ -89,6 +89,28 @@ async function persistLead(payload: LeadPayload): Promise<void> {
 
 async function parseLeadPayload(request: Request): Promise<LeadPayload> {
   try {
+    const contentType = request.headers.get("content-type") ?? "";
+
+    if (contentType.includes("application/json")) {
+      const rawBody = await request.text();
+      if (!rawBody?.trim()) {
+        return {};
+      }
+
+      return JSON.parse(rawBody) as LeadPayload;
+    }
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      return {
+        name: formData.get("name")?.toString().trim() || undefined,
+        phone: formData.get("phone")?.toString().trim() || undefined,
+        email: formData.get("email")?.toString().trim() || undefined,
+        date: formData.get("date")?.toString().trim() || undefined,
+        message: formData.get("message")?.toString().trim() || undefined,
+      };
+    }
+
     const rawBody = await request.text();
     if (!rawBody?.trim()) {
       return {};

@@ -521,9 +521,10 @@ function LeadForm() {
     };
 
     try {
-      const response = await fetch("/api/submit-lead", {
+      const submitUrl = typeof window !== "undefined" ? new URL("/api/submit-lead", window.location.origin).toString() : "/api/submit-lead";
+      const response = await fetch(submitUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(payload),
         credentials: "same-origin",
       });
