@@ -3,7 +3,7 @@ import "./lib/error-capture";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import dotenv from "dotenv";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
@@ -123,42 +123,30 @@ async function handleLeadSubmission(request: Request): Promise<Response> {
       `Message: ${payload.message?.trim() || "No additional message provided"}`,
     ].join("\n");
 
-    const rawHost = process.env.SMTP_HOST?.trim() || "smtp.gmail.com";
-    const smtpHost = rawHost.includes("://") ? rawHost.replace(/^https?:\/\//, "") : rawHost;
-    const smtpPort = Number(process.env.SMTP_PORT ?? 587);
-    const smtpUser = process.env.SMTP_USER?.trim();
-    const smtpPass = process.env.SMTP_PASS?.trim();
+    const resendApiKey = process.env.RESEND_API_KEY?.trim();
     const targetEmail = process.env.LEAD_EMAIL_TO?.trim() || "abhishekx29@gmail.com";
-    const fromAddress = process.env.SMTP_FROM?.trim() || smtpUser || "noreply@gomti-homes.local";
+    const fromAddress = process.env.RESEND_FROM?.trim() || process.env.SMTP_FROM?.trim() || "onboarding@resend.dev";
 
-    if (smtpHost && smtpUser && smtpPass && !smtpHost.includes("://")) {
+    if (resendApiKey) {
       try {
-        const transporter = nodemailer.createTransport({
-          host: smtpHost.startsWith("smtp.") || smtpHost === "gmail.com" ? smtpHost : `smtp.${smtpHost}`,
-          port: smtpPort,
-          secure: smtpPort === 465,
-          auth: {
-            user: smtpUser,
-            pass: smtpPass,
-          },
-        });
+        const resend = new Resend(resendApiKey);
 
-        await transporter.sendMail({
+        await resend.emails.send({
           from: fromAddress,
-          to: targetEmail,
+          to: [targetEmail],
           subject: "New Site Visit Request - Gomti Homes",
           text: details,
         });
 
-        return new Response(JSON.stringify({ success: true }), {
+        return new Response(JSON.stringify({ success: true, delivered: true }), {
           status: 200,
           headers: { "content-type": "application/json" },
         });
       } catch (error) {
-        console.error("Lead email delivery failed, falling back to local storage", error);
+        console.error("Lead email delivery failed with Resend, falling back to local storage", error);
       }
     } else {
-      console.warn("Lead email not sent because SMTP credentials are not configured or invalid.");
+      console.warn("Lead email not sent because Resend credentials are not configured.");
     }
 
     await persistLead(payload);
