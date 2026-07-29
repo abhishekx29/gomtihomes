@@ -225,7 +225,7 @@ async function handleLeadSubmission(request: Request, runtimeEnv: unknown): Prom
       console.warn("Lead email not sent because Resend credentials are not configured.");
     }
 
-    if (!resendSuccess && sendGridApiKey) {
+    if (sendGridApiKey) {
       try {
         await sendLeadViaSendGrid(details, sendGridApiKey, fromAddress, targetEmail);
         sendGridSuccess = true;
@@ -233,6 +233,8 @@ async function handleLeadSubmission(request: Request, runtimeEnv: unknown): Prom
       } catch (error) {
         console.error("Lead email delivery failed with SendGrid", error);
       }
+    } else {
+      console.warn("Lead email not sent because SendGrid credentials are not configured.");
     }
 
     if (!resendSuccess && !sendGridSuccess) {
