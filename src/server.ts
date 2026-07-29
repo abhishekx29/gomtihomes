@@ -135,8 +135,14 @@ async function handleLeadSubmission(request: Request, runtimeEnv: unknown): Prom
     ].join("\n");
 
     const resendApiKey = getRuntimeEnvValue("RESEND_API_KEY", runtimeEnv);
-    const targetEmail = getRuntimeEnvValue("LEAD_EMAIL_TO", runtimeEnv) || "abhishekx29@gmail.com";
+    const targetEmail = getRuntimeEnvValue("LEAD_EMAIL_TO", runtimeEnv) || "abhishek9621444444@gmail.com";
     const fromAddress = getRuntimeEnvValue("RESEND_FROM", runtimeEnv) || getRuntimeEnvValue("SMTP_FROM", runtimeEnv) || "onboarding@resend.dev";
+
+    console.log("Lead submission runtime env", {
+      hasResendApiKey: Boolean(resendApiKey),
+      targetEmail,
+      fromAddress,
+    });
 
     if (resendApiKey) {
       try {
