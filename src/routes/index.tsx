@@ -599,7 +599,7 @@ function LeadForm() {
             <Field label="Message" name="message" as="textarea" />
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
-            <button type="submit" className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-gradient-cta px-6 py-3 font-semibold text-cta-foreground shadow-cta-glow transition hover:scale-[1.02] sm:flex-none">
+            <button type="submit" className="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-gradient-cta px-6 py-3 font-semibold text-cta-foreground shadow-cta-glow transition hover:scale-[1.02] sm:flex-none">
               Book Site Visit <ArrowRight className="h-4 w-4" />
             </button>
             <a href={`https://wa.me/${WHATSAPP}?text=${WA_MSG}`} target="_blank" rel="noopener" className="inline-flex items-center justify-center gap-2 rounded-full bg-whatsapp px-6 py-3 font-semibold text-white transition hover:scale-[1.02]">
