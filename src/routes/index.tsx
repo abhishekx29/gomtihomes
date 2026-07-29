@@ -530,21 +530,25 @@ function LeadForm() {
       });
 
       const responseText = await response.text();
-      let result: { success?: boolean; error?: string } = { success: false };
+      let result: { success?: boolean; error?: string; fallback?: boolean; message?: string } = { success: false };
 
       try {
-        result = JSON.parse(responseText) as { success?: boolean; error?: string };
+        result = JSON.parse(responseText) as { success?: boolean; error?: string; fallback?: boolean; message?: string };
       } catch {
         result = { success: response.ok };
       }
 
-      if (!response.ok || result.success !== true) {
-        throw new Error(result.error || "Unable to send your request.");
+      if (!response.ok) {
+        throw new Error(result.error || result.message || "Unable to send your request.");
+      }
+
+      if (result.success !== true && result.fallback !== true) {
+        throw new Error(result.error || result.message || "Unable to send your request.");
       }
 
       setModal({
         title: "Request received",
-        message: "Thanks! Our team will contact you shortly.",
+        message: result.message || "Thanks! Our team will contact you shortly.",
         type: "success",
       });
       form.reset();
