@@ -155,15 +155,44 @@ async function handleLeadSubmission(request: Request, runtimeEnv: unknown): Prom
           text: details,
         });
 
-        return new Response(JSON.stringify({ success: true, delivered: true }), {
+        return new Response(JSON.stringify({ success: true, delivered: true, method: "resend" }), {
           status: 200,
           headers: { "content-type": "application/json" },
         });
       } catch (error) {
-        console.error("Lead email delivery failed with Resend, falling back to local storage", error);
+        console.error("Lead email delivery failed with Resend, trying fallback delivery", error);
       }
     } else {
       console.warn("Lead email not sent because Resend credentials are not configured.");
+    }
+
+    try {
+      const fallbackResponse = await fetch("https://formsubmit.co/ajax/" + encodeURIComponent(targetEmail), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json",
+        },
+        body: new URLSearchParams({
+          name: payload.name?.trim() || "Site Visit Lead",
+          phone: payload.phone?.trim() || "",
+          email: payload.email?.trim() || "",
+          date: payload.date?.trim() || "",
+          message: details,
+          _subject: "New Site Visit Request - Gomti Homes",
+        }).toString(),
+      });
+
+      if (fallbackResponse.ok) {
+        return new Response(JSON.stringify({ success: true, delivered: true, method: "formsubmit" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+
+      console.error("FormSubmit fallback failed", await fallbackResponse.text());
+    } catch (fallbackError) {
+      console.error("FormSubmit fallback failed", fallbackError);
     }
 
     await persistLead(payload);
